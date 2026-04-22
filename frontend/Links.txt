@@ -1,0 +1,9 @@
+Gemini API_KEY : https://aistudio.google.com/app/api-keys?projectFilter=gen-lang-client-0510044575
+
+Lovely Web view : 
+    Local URL: http://localhost:8502
+    Network URL: http://192.168.1.27:8502
+
+app.py webview:
+    Local URL: http://localhost:8503
+    Network URL: http://192.168.1.27:8503
