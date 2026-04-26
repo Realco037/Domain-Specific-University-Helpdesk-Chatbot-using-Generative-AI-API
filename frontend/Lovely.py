@@ -1,15 +1,17 @@
 import streamlit as st
 import google.generativeai as genai
+import os
 
 # API
-genai.configure(api_key="AIzaSyAuYAmglsuXGpLsR7zmgMSxgGZqMz4o1LU")
-model = genai.GenerativeModel("gemini-3-flash-preview")
+genai.configure(api_key=st.secrets["AIzaSyAuYAmglsuXGpLsR7zmgMSxgGZqMz4o1LU"])
+model = genai.GenerativeModel("gemini-1.5-flash")
 
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Load data
 @st.cache_data
 def load_data():
-    with open("university_dataset.txt", "r") as f:
+    with open(os.path.join(BASE_DIR, "university_dataset.txt"), "r") as f:
         return f.read()
 
 # Chatbot logic
@@ -77,7 +79,7 @@ body {
 """, unsafe_allow_html=True)
 
 # --- HEADER ---
-st.image("lpu_logo.png", width=100)
+st.image(os.path.join(BASE_DIR, "lpu_logo.png"), width=100)
 st.title("🎓 Lovely – Student Helpdesk")
 st.markdown("### Your friendly university assistant")
 
