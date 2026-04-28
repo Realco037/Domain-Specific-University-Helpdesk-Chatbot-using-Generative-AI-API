@@ -1,6 +1,7 @@
 import streamlit as st
 import google.generativeai as genai
 import os
+import base64
 
 # Must be the very first Streamlit call
 st.set_page_config(
@@ -26,15 +27,15 @@ except KeyError:
     )
     st.stop()
 
-try:
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(
-        "gemini-1.5-flash",
+genai.configure(api_key=api_key)
+
+MODELS_TO_TRY = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash"]
+
+def make_model(name: str):
+    return genai.GenerativeModel(
+        name,
         generation_config={"temperature": 0.3, "max_output_tokens": 400},
     )
-except Exception as e:
-    st.error(f"Failed to initialise AI model: {e}")
-    st.stop()
 
 # ── DATA ─────────────────────────────────────────────────────────────────────
 @st.cache_data
@@ -71,11 +72,13 @@ RECENT CONVERSATION:
 Student: {user_input}
 Lovely:"""
 
-    try:
-        response = model.generate_content(prompt)
-        return response.text.strip()
-    except Exception:
-        return "I'm having trouble connecting right now. Please try again in a moment."
+    for model_name in MODELS_TO_TRY:
+        try:
+            response = make_model(model_name).generate_content(prompt)
+            return response.text.strip()
+        except Exception:
+            continue
+    return "I'm sorry, I couldn't reach the AI service. Please check your API key or try again later."
 
 # ── QUICK-QUESTION HELPER ────────────────────────────────────────────────────
 def ask_quick(question: str):
@@ -168,13 +171,6 @@ div[data-testid="stSidebar"] div.stButton > button:hover {
     color: #fff;
 }
 
-/* Sharper logo rendering */
-img {
-    image-rendering: -webkit-optimize-contrast;
-    image-rendering: crisp-edges;
-    filter: contrast(1.05) saturate(1.05);
-}
-
 /* Hide Streamlit chrome */
 #MainMenu, footer, header { visibility: hidden; }
 </style>
@@ -193,10 +189,21 @@ if "messages" not in st.session_state:
         }
     ]
 
+# ── LOGO HELPER ───────────────────────────────────────────────────────────────
+def centered_logo(width: int) -> str:
+    with open(LOGO_PATH, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode()
+    return (
+        f'<div style="display:flex;justify-content:center;margin-bottom:8px">'
+        f'<img src="data:image/png;base64,{b64}" width="{width}" '
+        f'style="image-rendering:-webkit-optimize-contrast;filter:contrast(1.05) saturate(1.05)"/>'
+        f'</div>'
+    )
+
 # ── SIDEBAR ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     if os.path.exists(LOGO_PATH):
-        st.image(LOGO_PATH, width=110)
+        st.markdown(centered_logo(120), unsafe_allow_html=True)
 
     st.markdown("### 🎓 Lovely Helpdesk")
     st.markdown("*AI-powered university assistant*")
@@ -233,9 +240,7 @@ with st.sidebar:
 
 # ── MAIN AREA ─────────────────────────────────────────────────────────────────
 if os.path.exists(LOGO_PATH):
-    c1, c2, c3 = st.columns([1, 1, 1])
-    with c2:
-        st.image(LOGO_PATH, width=90)
+    st.markdown(centered_logo(100), unsafe_allow_html=True)
 
 st.markdown("""
 <div class="page-header">
