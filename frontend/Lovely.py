@@ -168,6 +168,13 @@ div[data-testid="stSidebar"] div.stButton > button:hover {
     color: #fff;
 }
 
+/* Sharper logo rendering */
+img {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+    filter: contrast(1.05) saturate(1.05);
+}
+
 /* Hide Streamlit chrome */
 #MainMenu, footer, header { visibility: hidden; }
 </style>
