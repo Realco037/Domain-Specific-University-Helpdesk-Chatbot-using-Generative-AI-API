@@ -60,7 +60,7 @@ RECENT CONVERSATION:
 Student: {user_input}
 Lovely:"""
 
-    models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-pro"]
+    models = ["gemini-3-flash-preview", "gemini-2.0-flash", "gemini-1.5-flash"]
     last_error = None
     for model_name in models:
         try:
