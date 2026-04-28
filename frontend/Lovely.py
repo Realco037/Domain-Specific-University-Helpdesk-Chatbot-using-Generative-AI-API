@@ -2,121 +2,267 @@ import streamlit as st
 import google.generativeai as genai
 import os
 
-# API
-genai.configure(api_key=st.secrets["AIzaSyAuYAmglsuXGpLsR7zmgMSxgGZqMz4o1LU"])
-model = genai.GenerativeModel("gemini-1.5-flash")
-
+# Must be the very first Streamlit call
+st.set_page_config(
+    page_title="Lovely - University Helpdesk",
+    page_icon="🎓",
+    layout="centered",
+    initial_sidebar_state="expanded",
+)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# Load data
+LOGO_PATH = os.path.join(BASE_DIR, "lpu_logo.png")
+DATA_PATH = os.path.join(BASE_DIR, "university_dataset.txt")
+
+# ── API SETUP ────────────────────────────────────────────────────────────────
+try:
+    api_key = st.secrets["GOOGLE_API_KEY"]
+except KeyError:
+    st.error("**API key missing.** Add `GOOGLE_API_KEY` to your Streamlit Cloud secrets.")
+    st.code('GOOGLE_API_KEY = "your-google-api-key-here"', language="toml")
+    st.markdown(
+        "Get a free key at [Google AI Studio](https://aistudio.google.com/app/apikey), "
+        "then go to **App settings → Secrets** in Streamlit Cloud and paste it there."
+    )
+    st.stop()
+
+try:
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel(
+        "gemini-1.5-flash",
+        generation_config={"temperature": 0.3, "max_output_tokens": 400},
+    )
+except Exception as e:
+    st.error(f"Failed to initialise AI model: {e}")
+    st.stop()
+
+# ── DATA ─────────────────────────────────────────────────────────────────────
 @st.cache_data
-def load_data():
-    with open(os.path.join(BASE_DIR, "university_dataset.txt"), "r") as f:
+def load_data() -> str:
+    with open(DATA_PATH, "r", encoding="utf-8") as f:
         return f.read()
 
-# Chatbot logic
-def get_response(user_input):
+# ── CHATBOT LOGIC ─────────────────────────────────────────────────────────────
+def get_response(user_input: str) -> str:
     data = load_data()
+    history = st.session_state.get("messages", [])
 
-    prompt = f"""
-You are Lovely 🧡, a friendly and professional university helpdesk assistant.
+    history_text = ""
+    for msg in history[-6:]:
+        label = "Student" if msg["role"] == "user" else "Lovely"
+        history_text += f"{label}: {msg['content']}\n"
 
-Your job is to help students with questions about:
-- attendance
-- classes
-- exams
-- fees
-- academic rules
-- general university policies
+    prompt = f"""You are Lovely 🧡, a warm and professional university helpdesk assistant.
 
-PERSONALITY:
-- Always be polite, warm, and helpful
-- Speak like a real assistant, not a robot
-- Keep answers clear and easy to understand
+PERSONALITY: Friendly, clear, and concise. Never robotic.
 
 RULES:
-- Answer briefly (2–4 sentences max)
-- ONLY use the information provided below
-- DO NOT make up information
-- If the answer is not in the data, say:
-  "I'm sorry, I don't have that information right now."
+- Answer ONLY using the university data below.
+- Keep answers to 2–4 sentences.
+- If the answer is not in the data, say: "I'm sorry, I don't have that information. Please contact the university administration."
+- Never invent information.
+- Do not repeat the student's question back to them.
 
 UNIVERSITY DATA:
 {data}
 
-QUESTION:
-{user_input}
-"""
-    response = model.generate_content(prompt)
-    return response.text
+RECENT CONVERSATION:
+{history_text}
+Student: {user_input}
+Lovely:"""
 
-# --- PAGE CONFIG ---
-st.set_page_config(page_title="Lovely Chatbot", page_icon="🎓", layout="centered")
+    try:
+        response = model.generate_content(prompt)
+        return response.text.strip()
+    except Exception:
+        return "I'm having trouble connecting right now. Please try again in a moment."
 
-# --- CUSTOM CSS ---
+# ── QUICK-QUESTION HELPER ────────────────────────────────────────────────────
+def ask_quick(question: str):
+    st.session_state.messages.append({"role": "user", "content": question})
+    with st.spinner("Lovely is thinking... 💭"):
+        reply = get_response(question)
+    st.session_state.messages.append({"role": "assistant", "content": reply})
+    st.rerun()
+
+# ── STYLES ────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-body {
-    background-color: #0e1117;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+html, body, .stApp { font-family: 'Inter', sans-serif; }
+
+/* ── User bubble ── */
+.user-msg {
+    display: flex;
+    justify-content: flex-end;
+    margin: 10px 0 4px 60px;
 }
-.chat-bubble-user {
-    background-color: orange;
-    padding: 10px;
-    border-radius: 10px;
-    margin: 5px;
-    color: white;
-    text-align: right;
+.user-msg-inner {
+    background: linear-gradient(135deg, #FF6B35, #FF8C42);
+    color: #fff;
+    padding: 12px 18px;
+    border-radius: 20px 20px 4px 20px;
+    max-width: 82%;
+    font-size: 14px;
+    line-height: 1.6;
+    box-shadow: 0 3px 12px rgba(255, 107, 53, .25);
+    word-wrap: break-word;
 }
-.chat-bubble-bot {
-    background-color: #262730;
-    padding: 10px;
-    border-radius: 10px;
-    margin: 5px;
-    color: white;
+
+/* ── Bot bubble ── */
+.bot-msg {
+    display: flex;
+    justify-content: flex-start;
+    margin: 10px 60px 4px 0;
+    gap: 10px;
+    align-items: flex-start;
+}
+.bot-avatar {
+    width: 36px; height: 36px; min-width: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #FF6B35, #FF8C42);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 2px 8px rgba(255, 107, 53, .3);
+    flex-shrink: 0;
+}
+.bot-msg-inner {
+    background: #F8F9FB;
+    color: #1a1a2e;
+    padding: 12px 18px;
+    border-radius: 20px 20px 20px 4px;
+    max-width: 82%;
+    font-size: 14px;
+    line-height: 1.6;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .06);
+    border: 1px solid #eee;
+    word-wrap: break-word;
+}
+
+/* dark-mode bot bubble */
+@media (prefers-color-scheme: dark) {
+    .bot-msg-inner { background: #1e2029; color: #f0f0f0; border-color: #333; }
+}
+
+/* ── Page header ── */
+.page-header { text-align: center; padding: 8px 0 4px; }
+.page-title  { font-size: 2rem; font-weight: 700; color: #FF6B35; margin: 0; }
+.page-sub    { color: #888; font-size: .95rem; margin: 2px 0 0; }
+
+/* ── Sidebar quick-question buttons ── */
+div[data-testid="stSidebar"] div.stButton > button {
+    border-radius: 20px;
+    border: 1.5px solid #FF6B35;
+    color: #FF6B35;
+    background: transparent;
+    font-size: 13px;
     text-align: left;
+    padding: 7px 14px;
+    transition: all .18s ease;
+    width: 100%;
+    margin-bottom: 4px;
 }
+div[data-testid="stSidebar"] div.stButton > button:hover {
+    background: #FF6B35;
+    color: #fff;
+}
+
+/* Hide Streamlit chrome */
+#MainMenu, footer, header { visibility: hidden; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- HEADER ---
-st.image(os.path.join(BASE_DIR, "lpu_logo.png"), width=100)
-st.title("🎓 Lovely – Student Helpdesk")
-st.markdown("### Your friendly university assistant")
-
-#--SIDEBAR--
-st.sidebar.title("About Lovely")
-st.sidebar.info("AI-powered university assistant")
-
-#--SIDEBUTTONS--
-if st.button("Check Attendance Rule"):
-    st.session_state.messages.append({"role": "user", "content": "attendance"})
-
-# --- SESSION STATE (CHAT HISTORY) ---
+# ── SESSION STATE ─────────────────────────────────────────────────────────────
 if "messages" not in st.session_state:
-    st.session_state.messages = []
+    st.session_state.messages = [
+        {
+            "role": "assistant",
+            "content": (
+                "Hello! I am Lovely 🧡, your university helpdesk assistant. "
+                "I can help with attendance policies, exam rules, academic regulations, and more. "
+                "What would you like to know?"
+            ),
+        }
+    ]
 
-    # Add greeting message automatically
-    st.session_state.messages.append({
-        "role": "assistant",
-        "content": "Hello, I am Lovely 🧡. How can I assist you today?"
-    })
+# ── SIDEBAR ───────────────────────────────────────────────────────────────────
+with st.sidebar:
+    if os.path.exists(LOGO_PATH):
+        st.image(LOGO_PATH, width=110)
 
-# --- DISPLAY CHAT ---
+    st.markdown("### 🎓 Lovely Helpdesk")
+    st.markdown("*AI-powered university assistant*")
+    st.markdown("---")
+    st.markdown("**⚡ Quick Questions**")
+
+    QUICK = {
+        "📋 Attendance Policy":  "What is the minimum attendance requirement?",
+        "📝 Exam Rules":         "What are the exam rules and requirements?",
+        "📊 Evaluation System":  "How does the evaluation and grading system work?",
+        "👔 Dress Code":         "What is the dress code policy?",
+        "🏠 Hostel Information": "What are the hostel rules?",
+        "📚 Academic Rules":     "What are the main academic rules I should know?",
+        "🏫 Class Schedule":     "How are class schedules managed?",
+    }
+
+    for label, question in QUICK.items():
+        if st.button(label, use_container_width=True, key=f"q_{label}"):
+            ask_quick(question)
+
+    st.markdown("---")
+
+    if st.button("🗑️ Clear Conversation", use_container_width=True):
+        st.session_state.messages = [
+            {"role": "assistant", "content": "Hello! I am Lovely 🧡. How can I assist you today?"}
+        ]
+        st.rerun()
+
+    st.markdown("---")
+    st.caption(
+        "Lovely answers questions about attendance, exams, evaluation, "
+        "dress code, hostel rules, and campus policies."
+    )
+
+# ── MAIN AREA ─────────────────────────────────────────────────────────────────
+if os.path.exists(LOGO_PATH):
+    c1, c2, c3 = st.columns([1, 1, 1])
+    with c2:
+        st.image(LOGO_PATH, width=90)
+
+st.markdown("""
+<div class="page-header">
+    <p class="page-title">Lovely 🧡</p>
+    <p class="page-sub">Your University Helpdesk Assistant</p>
+</div>
+""", unsafe_allow_html=True)
+
+st.divider()
+
+# ── RENDER MESSAGES ───────────────────────────────────────────────────────────
 for msg in st.session_state.messages:
     if msg["role"] == "user":
-        st.markdown(f'<div class="chat-bubble-user">{msg["content"]}</div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="user-msg">'
+            f'<div class="user-msg-inner">{msg["content"]}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
     else:
-        st.markdown(f'<div class="chat-bubble-bot">{msg["content"]}</div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="bot-msg">'
+            f'<div class="bot-avatar">🧡</div>'
+            f'<div class="bot-msg-inner">{msg["content"]}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
 
-# --- INPUT ---
-user_input = st.chat_input("Type your question...")
-
-if user_input:
-    st.session_state.messages.append({"role": "user", "content": user_input})
+# ── INPUT ─────────────────────────────────────────────────────────────────────
+if prompt := st.chat_input("Ask me anything about the university..."):
+    st.session_state.messages.append({"role": "user", "content": prompt})
 
     with st.spinner("Lovely is thinking... 💭"):
-        reply = get_response(user_input)
+        reply = get_response(prompt)
 
     st.session_state.messages.append({"role": "assistant", "content": reply})
-
     st.rerun()
