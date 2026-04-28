@@ -32,10 +32,7 @@ genai.configure(api_key=api_key)
 MODELS_TO_TRY = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash"]
 
 def make_model(name: str):
-    return genai.GenerativeModel(
-        name,
-        generation_config={"temperature": 0.3, "max_output_tokens": 400},
-    )
+    return genai.GenerativeModel(name)
 
 # ── DATA ─────────────────────────────────────────────────────────────────────
 @st.cache_data
@@ -171,8 +168,10 @@ div[data-testid="stSidebar"] div.stButton > button:hover {
     color: #fff;
 }
 
-/* Hide Streamlit chrome */
-#MainMenu, footer, header { visibility: hidden; }
+/* Hide Streamlit chrome but keep sidebar toggle button */
+#MainMenu { visibility: hidden; }
+footer { visibility: hidden; }
+[data-testid="stToolbar"] { visibility: hidden; }
 </style>
 """, unsafe_allow_html=True)
 
