@@ -1,5 +1,5 @@
 import streamlit as st
-from google import genai
+import google.generativeai as genai
 import os
 import base64
 
@@ -23,7 +23,7 @@ except KeyError:
     st.code('GOOGLE_API_KEY = "your-google-api-key-here"', language="toml")
     st.stop()
 
-client = genai.Client(api_key=api_key)
+genai.configure(api_key=api_key)
 
 # ── DATA ─────────────────────────────────────────────────────────────────────
 @st.cache_data
@@ -60,14 +60,12 @@ RECENT CONVERSATION:
 Student: {user_input}
 Lovely:"""
 
-    models = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash"]
+    models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-pro"]
     last_error = None
     for model_name in models:
         try:
-            response = client.models.generate_content(
-                model=model_name,
-                contents=prompt,
-            )
+            model = genai.GenerativeModel(model_name)
+            response = model.generate_content(prompt)
             return response.text.strip()
         except Exception as e:
             last_error = e
