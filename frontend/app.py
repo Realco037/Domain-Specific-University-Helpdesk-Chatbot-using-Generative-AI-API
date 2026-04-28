@@ -9,7 +9,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ── API SETUP ────────────────────────────────────────────────────────────────
 try:
-    api_key = st.secrets["GOOGLE_API_KEY"]
+    api_key = st.secrets["AIzaSyDy7iwq9UQpk2R2U7wGd-U6ferQypgEeVA"]
 except KeyError:
     st.error("**API key missing.** Add `GOOGLE_API_KEY` to your Streamlit Cloud secrets.")
     st.stop()
