@@ -1,5 +1,5 @@
 import streamlit as st
-from google import genai
+import google.generativeai as genai
 import os
 import base64
 
@@ -23,7 +23,8 @@ except KeyError:
     st.code('GOOGLE_API_KEY = "your-google-api-key-here"', language="toml")
     st.stop()
 
-client = genai.Client(api_key=api_key)
+genai.configure(api_key=api_key)
+model = genai.GenerativeModel("gemini-3-flash-preview")
 
 # ── DATA ─────────────────────────────────────────────────────────────────────
 @st.cache_data
@@ -60,25 +61,11 @@ RECENT CONVERSATION:
 Student: {user_input}
 Lovely:"""
 
-    models = [
-        "gemini-2.0-flash",
-        "gemini-2.0-flash-lite",
-        "gemini-1.5-flash",
-        "gemini-1.5-pro",
-    ]
-    last_error = None
-    for model_name in models:
-        try:
-            response = client.models.generate_content(
-                model=model_name,
-                contents=prompt,
-            )
-            return response.text.strip()
-        except Exception as e:
-            last_error = e
-            continue
-
-    return f"Sorry, I could not reach the AI service. Error: {last_error}"
+    try:
+        response = model.generate_content(prompt)
+        return response.text.strip()
+    except Exception as e:
+        return f"Sorry, I could not reach the AI service. Error: {e}"
 
 # ── QUICK-QUESTION HELPER ────────────────────────────────────────────────────
 def ask_quick(question: str):
