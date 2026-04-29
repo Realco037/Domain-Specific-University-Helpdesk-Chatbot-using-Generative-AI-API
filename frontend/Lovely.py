@@ -1,5 +1,5 @@
 import streamlit as st
-import google.generativeai as genai
+from google import genai
 import os
 import base64
 
@@ -23,7 +23,7 @@ except KeyError:
     st.code('GOOGLE_API_KEY = "your-google-api-key-here"', language="toml")
     st.stop()
 
-genai.configure(api_key=api_key)
+client = genai.Client(api_key=api_key)
 
 # ── DATA ─────────────────────────────────────────────────────────────────────
 @st.cache_data
@@ -50,7 +50,7 @@ RULES:
 - Keep answers to 2-4 sentences.
 - If the answer is not in the data, say: "I'm sorry, I don't have that information. Please contact the university administration."
 - Never invent information.
-- Do not repeat the student's question back to them.
+- Do not repeat the student's question.
 
 UNIVERSITY DATA:
 {data}
@@ -60,16 +60,24 @@ RECENT CONVERSATION:
 Student: {user_input}
 Lovely:"""
 
-    models = ["gemini-3-flash-preview", "gemini-2.0-flash", "gemini-1.5-flash"]
+    models = [
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-lite",
+        "gemini-1.5-flash",
+        "gemini-1.5-pro",
+    ]
     last_error = None
     for model_name in models:
         try:
-            model = genai.GenerativeModel(model_name)
-            response = model.generate_content(prompt)
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+            )
             return response.text.strip()
         except Exception as e:
             last_error = e
             continue
+
     return f"Sorry, I could not reach the AI service. Error: {last_error}"
 
 # ── QUICK-QUESTION HELPER ────────────────────────────────────────────────────
@@ -127,6 +135,8 @@ html, body, .stApp { font-family: 'Inter', sans-serif; }
     font-size: 18px;
     box-shadow: 0 2px 8px rgba(255,107,53,.3);
     flex-shrink: 0;
+    color: white;
+    font-weight: 700;
 }
 .bot-msg-inner {
     background: #F8F9FB;
